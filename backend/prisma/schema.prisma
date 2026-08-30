@@ -23,20 +23,17 @@ model Usuario {
 }
 
 model Curso {
-  id        Int    @id @default(autoincrement())
-  titulo    String
-  descricao String
+  id                  Int      @id @default(autoincrement())
+  titulo              String
+  descricao           String
+  certificadoModeloId Int?
+  status              Status   @default(ATIVO)
+  criadoEm            DateTime @default(now())
 
-  status   Status   @default(ATIVO)
-  criadoEm DateTime @default(now())
-
-  modulos              Modulo[]
-  matriculas           Matricula[]
-  certificadoModelo    CertificadoModelo?   @relation(fields: [certificadoModeloId], references: [id])
-  certificadoModeloId  Int?
-  videos               Video[]
-  matriculasProgressos MatriculaProgresso[]
-  certificados         Certificado[]
+  modulos           Modulo[]
+  matriculas        Matricula[]
+  certificadoModelo CertificadoModelo? @relation(fields: [certificadoModeloId], references: [id])
+  certificados      Certificado[]
 
   @@map("cursos")
 }
@@ -57,18 +54,13 @@ model Modulo {
 model Video {
   id              Int    @id @default(autoincrement())
   moduloId        Int
-  cursoId         Int
   titulo          String
   key             String
   duracaoSegundos Int
   ordem           Int
 
-  cursos  Curso  @relation(fields: [cursoId], references: [id])
-  modulos Modulo @relation(fields: [moduloId], references: [id])
-
-  certificadoModelo   CertificadoModelo?   @relation(fields: [certificadoModeloId], references: [id])
-  certificadoModeloId Int?
-  matriculaProgressos MatriculaProgresso[]
+  modulos             Modulo               @relation(fields: [moduloId], references: [id])
+  matriculasProgresso MatriculaProgresso[]
 
   @@map("videos")
 }
@@ -81,8 +73,9 @@ model Matricula {
   concluido Boolean         @default(false)
   criadoEm  DateTime        @default(now())
 
-  cursos   Curso   @relation(fields: [cursoId], references: [id])
-  usuarios Usuario @relation(fields: [usuarioId], references: [id])
+  cursos              Curso                @relation(fields: [cursoId], references: [id])
+  usuarios            Usuario              @relation(fields: [usuarioId], references: [id])
+  matriculasProgresso MatriculaProgresso[]
 
   @@map("matriculas")
 }
@@ -90,15 +83,13 @@ model Matricula {
 model MatriculaProgresso {
   id                 Int      @id @default(autoincrement())
   matriculaId        Int
-  usuarioId          Int
   videoId            Int
   segundosAssistidos Int
   concluido          Boolean  @default(false)
   criadoEm           DateTime @default(now())
 
-  videos  Video  @relation(fields: [videoId], references: [id])
-  curso   Curso? @relation(fields: [cursoId], references: [id])
-  cursoId Int?
+  matriculas Matricula? @relation(fields: [matriculaId], references: [id])
+  videos     Video?     @relation(fields: [videoId], references: [id])
 
   @@map("matriculas_progresso")
 }
@@ -110,7 +101,6 @@ model CertificadoModelo {
   key      String
   criadoEm DateTime        @default(now())
 
-  videos       Video[]
   cursos       Curso[]
   certificados Certificado[]
 
