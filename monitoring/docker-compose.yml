@@ -10,6 +10,18 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
 
+  loki:
+    image: grafana/loki:3.7.0
+    container_name: course-platform-loki
+
+    ports:
+      - "3100:3100"
+
+    command: -config.file=/etc/loki/local-config.yaml
+
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+
   grafana:
     image: grafana/grafana:latest
     container_name: course-platform-grafana
@@ -22,6 +34,7 @@ services:
 
     depends_on:
       - prometheus
+      - loki
 
 volumes:
   prometheus_data:
