@@ -12,8 +12,8 @@ export function Router() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/admin" />
-        <Route path="/portal" />
+        <Route path="/admin/*" />
+        <Route path="/portal/*" />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

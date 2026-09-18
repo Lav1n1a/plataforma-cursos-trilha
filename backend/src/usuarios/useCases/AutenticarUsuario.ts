@@ -33,7 +33,7 @@ export class AutenticarUsuarioUseCase {
         }
 
         const token = jwt.sign(
-            { id: usuario.id, role: usuario.perfil },
+            { id: usuario.id, perfil: usuario.perfil },
             jwtSecret,
             {
                 expiresIn: "1h",
