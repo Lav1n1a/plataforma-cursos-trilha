@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express  from "express";
 import { usuarioRoutes } from "./rotas/usuario.routes";
+import { oidcRoutes } from './rotas/oidc.routes';
+import { oidcSession } from './middlewares/oidc-session';
 import { httpLogger } from './middlewares/http-logger';
 import { metricsMiddleware } from './middlewares/metrics';
 import { metricsRegistry } from './observability/metrics';
@@ -30,6 +32,8 @@ app.get('/health', (_req, res) => {
   });
 });
 
+app.use(oidcSession);
+app.use(oidcRoutes);
 app.use(usuarioRoutes)
 
 app.listen(3333, () => {

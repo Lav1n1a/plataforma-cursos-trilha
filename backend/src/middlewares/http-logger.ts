@@ -6,6 +6,12 @@ import { logger } from '@/observability/logger';
 export const httpLogger = pinoHttp({
   logger,
 
+  serializers: {
+    req(req) {
+      return { ...req, url: req.url?.split('?')[0] };
+    },
+  },
+
   genReqId(req, res) {
     const receivedId = req.headers['x-request-id'];
 
