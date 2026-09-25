@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { createPkce } from '../oidc/pkce';
 import { oidcConfig } from '../oidc/discover';
+import { exchangeCodeForTokens } from '../oidc/exchange-code';
+import { validateIdToken } from '../oidc/validate-id-token';
 
 const clientId = process.env.OIDC_CLIENT_ID;
 const redirectUri = process.env.OIDC_REDIRECT_URI;
@@ -33,7 +35,6 @@ oidcRoutes.get('/auth/login', (req, res, next) => {
     nonce,
   }).toString();
 
-  // Aguarda a gravação antes de enviar o navegador para outro servidor.
   req.session.save((error) => {
     if (error) return next(error);
 
@@ -42,7 +43,7 @@ oidcRoutes.get('/auth/login', (req, res, next) => {
   });
 });
 
-oidcRoutes.get('/auth/callback', (req, res) => {
+oidcRoutes.get('/auth/callback', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Referrer-Policy', 'no-referrer');
 
@@ -54,7 +55,6 @@ oidcRoutes.get('/auth/callback', (req, res) => {
     });
   }
 
-  // O state desta tentativa só pode ser usado uma vez.
   delete req.session.state;
 
   if (error !== undefined || typeof code !== 'string' || !code) {
@@ -66,11 +66,43 @@ oidcRoutes.get('/auth/callback', (req, res) => {
     });
   }
 
-  // Etapa didática: a troca do código por tokens será implementada aqui.
-  return res.json({
-    message: 'Código de autorização recebido e state conferido.',
-    codeReceived: true,
-    stateValid: true,
-    authenticated: false,
-  });
+  const codeVerifier = req.session.codeVerifier;
+
+  if (!codeVerifier) {
+    delete req.session.nonce;
+
+    return res.status(400).json({
+      message: 'Verifier não encontrado. Inicie o login novamente.',
+    });
+  }
+
+  delete req.session.codeVerifier;
+
+  try {
+    const tokens = await exchangeCodeForTokens(
+      code,
+      codeVerifier,
+    );
+    const idTokenClaims = await validateIdToken(tokens.id_token);
+
+    return res.json({
+      message: 'ID token assinado e claims básicas validadas.',
+      tokensReceived: {
+        accessToken: Boolean(tokens.access_token),
+        idToken: Boolean(tokens.id_token),
+        refreshToken: Boolean(tokens.refresh_token),
+      },
+      idTokenValidated: true,
+      subject: idTokenClaims.sub,
+      expiresIn: tokens.expires_in,
+      authenticated: false,
+    });
+  } catch {
+    delete req.session.nonce;
+
+    return res.status(502).json({
+      message: 'Não foi possível trocar o código por tokens.',
+    });
+  }
+
 });
