@@ -44,6 +44,8 @@ export const logger = pino({
       'req.body.senha',
       'req.headers.authorization',
       'req.headers.cookie',
+      'req.headers["x-csrf-token"]',
+      'req.body._csrf',
       'req.headers.referer',
       'req.query',
       'res.headers["set-cookie"]',

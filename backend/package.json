@@ -5,7 +5,12 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc && tsc-alias -f -fe .js",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "test:oidc": "npm test",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "user:role": "node scripts/user-role.mjs",
     "start": "node dist/server.js"
   },
   "keywords": [],
@@ -38,6 +43,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.13.3",
     "dotenv": "^17.4.2",
+    "tsc-alias": "^1.9.5",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3"
   }

@@ -14,8 +14,9 @@ Backend desenvolvido em **Node.js + TypeScript**, utilizando **Express** para co
 * **TypeScript**
 * **Express 5**
 * **Prisma ORM**
-* **JWT** — autenticação baseada em tokens
-* **Argon2** — hashing de senhas
+* **Keycloak + OpenID Connect** — Authorization Code com PKCE
+* **express-session + PostgreSQL** — sessão do navegador e tokens no backend
+* **jose** — validação do ID token assinado
 * **CORS**
 * **Dotenv**
 * **TSX** — execução do TypeScript em desenvolvimento
@@ -45,7 +46,7 @@ npm install
 
 ## Variáveis de ambiente
 
-Crie um arquivo `.env` na raiz do projeto:
+Crie `backend/.env` usando `.env.example` como modelo. Veja o [guia de autenticação](../docs/autenticacao.md) para configurar Keycloak, sessão e banco, executar o login e entender cada etapa do código.
 
 
 ## Banco de dados
@@ -53,7 +54,7 @@ Crie um arquivo `.env` na raiz do projeto:
 Após configurar o `DATABASE_URL`, execute as migrações do Prisma:
 
 ```bash
-npx prisma migrate dev
+npm run db:migrate
 ```
 
 Para gerar o Prisma Client:
@@ -99,6 +100,10 @@ npm start
 | `npm run dev`   | Executa o servidor em desenvolvimento |
 | `npm run build` | Compila o TypeScript                  |
 | `npm start`     | Executa a versão compilada            |
+| `npm test` | Compila e testa o fluxo OIDC |
+| `npm run db:generate` | Gera o Prisma Client |
+| `npm run db:migrate` | Aplica migrations existentes, sem reset |
+| `npm run user:role -- email ADMIN` | Altera explicitamente o perfil de um usuário OIDC |
 
 ## Estrutura do projeto
 

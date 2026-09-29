@@ -1,41 +1,36 @@
 import 'dotenv/config';
-import express  from "express";
-import { usuarioRoutes } from "./rotas/usuario.routes";
-import { oidcRoutes } from './rotas/oidc.routes';
-import { oidcSession } from './middlewares/oidc-session';
+import express from 'express';
+import { createApp } from './app';
+import { authUsers } from './auth/users';
+import { PrismaSessionStore } from './auth/session-store';
+import { prisma } from './data/prisma';
 import { httpLogger } from './middlewares/http-logger';
 import { metricsMiddleware } from './middlewares/metrics';
 import { metricsRegistry } from './observability/metrics';
 
-const app = express()
-app.use(express.json())
+const store = new PrismaSessionStore();
+await prisma.$connect();
+await store.prune();
+const cleanup = setInterval(() => {
+  store.prune().catch(() => console.error('Falha ao remover sessões expiradas.'));
+}, 15 * 60_000);
+cleanup.unref();
 
-// Ativa os logs para as requisições
+const app = express();
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 app.use(httpLogger);
-
-// Medição das requisições
 app.use(metricsMiddleware);
-
-// Prometheus acessará este endpoint
 app.get('/metrics', async (_req, res) => {
-  res.setHeader(
-    'Content-Type',
-    metricsRegistry.contentType,
-  );
-
-  return res.end(await metricsRegistry.metrics());
+  res.setHeader('Content-Type', metricsRegistry.contentType);
+  res.end(await metricsRegistry.metrics());
 });
+app.use(createApp(store, authUsers));
+const port = Number(process.env.PORT ?? 3333);
+const server = app.listen(port, () => console.log(`Backend disponível em http://localhost:${port}`));
 
-app.get('/health', (_req, res) => {
-  return res.status(200).json({
-    status: 'ok',
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    clearInterval(cleanup);
+    server.close(() => { prisma.$disconnect().finally(() => process.exit(0)); });
   });
-});
-
-app.use(oidcSession);
-app.use(oidcRoutes);
-app.use(usuarioRoutes)
-
-app.listen(3333, () => {
-    console.log('Ouvindo porta 3333');
-});
+}

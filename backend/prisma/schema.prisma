@@ -11,7 +11,9 @@ model Usuario {
   id       Int      @id @default(autoincrement())
   nome     String
   email    String
-  senha    String
+  senha    String?
+  oidcIssuer String?
+  oidcSub    String?
   perfil   Perfil   @default(PARTICIPANTE)
   criadoEm DateTime @default(now())
 
@@ -19,7 +21,17 @@ model Usuario {
   matriculas   Matricula[]
 
   @@unique([email])
+  @@unique([oidcIssuer, oidcSub])
   @@map("usuarios")
+}
+
+model AuthSession {
+  sid       String   @id
+  data      Json
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("auth_sessions")
 }
 
 model Curso {

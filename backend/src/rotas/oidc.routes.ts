@@ -2,107 +2,100 @@ import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { createPkce } from '../oidc/pkce';
 import { oidcConfig } from '../oidc/discover';
-import { exchangeCodeForTokens } from '../oidc/exchange-code';
+import { exchangeCodeForTokens, revokeRefreshToken } from '../oidc/exchange-code';
 import { validateIdToken } from '../oidc/validate-id-token';
+import { regenerateSession, saveSession } from '../middlewares/oidc-session';
+import { applyTokens, endLocalSession, requireSession } from '../auth/require-session';
+import { requireCsrf } from '../auth/csrf';
+import { AuthError } from '../auth/errors';
+import type { AuthUsers } from '../auth/users';
 
-const clientId = process.env.OIDC_CLIENT_ID;
-const redirectUri = process.env.OIDC_REDIRECT_URI;
+export function createOidcRoutes(users: AuthUsers) {
+  const routes = Router();
+  const clientId = process.env.OIDC_CLIENT_ID;
+  const redirectUri = process.env.OIDC_REDIRECT_URI;
+  if (!clientId || !redirectUri) throw new Error('Configure OIDC_CLIENT_ID e OIDC_REDIRECT_URI.');
 
-if (!clientId || !redirectUri) {
-  throw new Error('Configure OIDC_CLIENT_ID e OIDC_REDIRECT_URI no backend/.env');
-}
-
-export const oidcRoutes = Router();
-
-oidcRoutes.get('/auth/login', (req, res, next) => {
-  const { codeVerifier, codeChallenge } = createPkce();
-  const state = randomBytes(32).toString('base64url');
-  const nonce = randomBytes(32).toString('base64url');
-
-  req.session.codeVerifier = codeVerifier;
-  req.session.state = state;
-  req.session.nonce = nonce;
-
-  const authorizationUrl = new URL(oidcConfig.authorization_endpoint);
-  authorizationUrl.search = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'openid profile email',
-    code_challenge: codeChallenge,
-    code_challenge_method: 'S256',
-    state,
-    nonce,
-  }).toString();
-
-  req.session.save((error) => {
-    if (error) return next(error);
-
-    res.setHeader('Cache-Control', 'no-store');
-    return res.redirect(authorizationUrl.toString());
+  routes.get('/auth/login', async (req, res) => {
+    const { codeVerifier, codeChallenge } = createPkce();
+    req.session.codeVerifier = codeVerifier;
+    req.session.state = randomBytes(32).toString('base64url');
+    req.session.nonce = randomBytes(32).toString('base64url');
+    req.session.loginStartedAt = Date.now();
+    const url = new URL(oidcConfig.authorization_endpoint);
+    url.search = new URLSearchParams({
+      client_id: clientId, redirect_uri: redirectUri, response_type: 'code',
+      scope: 'openid profile email', code_challenge: codeChallenge, code_challenge_method: 'S256',
+      state: req.session.state, nonce: req.session.nonce,
+    }).toString();
+    await saveSession(req);
+    res.redirect(url.toString());
   });
-});
 
-oidcRoutes.get('/auth/callback', async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-
-  const { code, state, error } = req.query;
-
-  if (typeof state !== 'string' || !req.session.state || state !== req.session.state) {
-    return res.status(400).json({
-      message: 'Tentativa de login inválida ou expirada. Comece em /auth/login.',
-    });
-  }
-
-  delete req.session.state;
-
-  if (error !== undefined || typeof code !== 'string' || !code) {
+  routes.get('/auth/callback', async (req, res) => {
+    const { code, state, error, iss } = req.query;
+    if (typeof state !== 'string' || !req.session.state || state !== req.session.state) {
+      throw new AuthError(400, 'Tentativa de login inválida. Comece em /auth/login.');
+    }
+    const { codeVerifier, nonce, loginStartedAt } = req.session;
+    delete req.session.state;
     delete req.session.codeVerifier;
     delete req.session.nonce;
+    delete req.session.loginStartedAt;
+ 
+    await saveSession(req);
+    if (error !== undefined || typeof code !== 'string' || !code || !codeVerifier || !nonce ||
+        !loginStartedAt || Date.now() - loginStartedAt > 10 * 60_000 ||
+        (iss !== undefined && iss !== oidcConfig.issuer)) {
+      throw new AuthError(400, 'Login incompleto ou expirado. Comece em /auth/login.');
+    }
+    const tokens = await exchangeCodeForTokens(code, codeVerifier);
+    let claims;
+    try { claims = await validateIdToken(tokens.id_token, nonce); }
+    catch { throw new AuthError(401, 'ID token inválido. Entre novamente.'); }
+    const user = await users.resolveIdentity(claims);
 
-    return res.status(400).json({
-      message: 'O login não foi concluído ou o retorno veio sem código de autorização.',
-    });
-  }
+    await regenerateSession(req);
+    req.session.auth = {
+      userId: user.id, subject: claims.sub, nonce, authTime: claims.auth_time,
+      csrfToken: randomBytes(32).toString('base64url'), absoluteExpiresAt: Date.now() + 8 * 60 * 60_000,
+      accessToken: tokens.access_token, accessExpiresAt: 0, idToken: tokens.id_token,
+    };
+    applyTokens(req.session.auth!, tokens);
+    await saveSession(req);
+    res.redirect(303, '/me');
+  });
 
-  const codeVerifier = req.session.codeVerifier;
+  routes.post('/auth/refresh', requireCsrf, requireSession(users), (req, res) => {
+    res.json({ authenticated: true, accessExpiresAt: req.session.auth!.accessExpiresAt });
+  });
 
-  if (!codeVerifier) {
-    delete req.session.nonce;
+  routes.get('/auth/logout', (req, res) => {
+    if (!req.session.auth) return res.redirect('/auth/logged-out');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; form-action 'self'; frame-ancestors 'none'");
+    res.type('html').send(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Sair</title>
+      <h1>Encerrar sessão</h1><form method="post" action="/auth/logout">
+      <input type="hidden" name="_csrf" value="${req.session.auth.csrfToken}"><button>Sair da plataforma e do Keycloak</button></form></html>`);
+  });
 
-    return res.status(400).json({
-      message: 'Verifier não encontrado. Inicie o login novamente.',
-    });
-  }
-
-  delete req.session.codeVerifier;
-
-  try {
-    const tokens = await exchangeCodeForTokens(
-      code,
-      codeVerifier,
-    );
-    const idTokenClaims = await validateIdToken(tokens.id_token);
-
-    return res.json({
-      message: 'ID token assinado e claims básicas validadas.',
-      tokensReceived: {
-        accessToken: Boolean(tokens.access_token),
-        idToken: Boolean(tokens.id_token),
-        refreshToken: Boolean(tokens.refresh_token),
-      },
-      idTokenValidated: true,
-      subject: idTokenClaims.sub,
-      expiresIn: tokens.expires_in,
-      authenticated: false,
-    });
-  } catch {
-    delete req.session.nonce;
-
-    return res.status(502).json({
-      message: 'Não foi possível trocar o código por tokens.',
-    });
-  }
-
-});
+  routes.post('/auth/logout', requireCsrf, async (req, res) => {
+    const auth = req.session.auth!;
+  
+    await endLocalSession(req, res);
+    let revoked = true;
+    if (auth.refreshToken) {
+      try { await revokeRefreshToken(auth.refreshToken); } catch { revoked = false; }
+    }
+    if (!oidcConfig.end_session_endpoint) {
+      return res.json({ authenticated: false, providerLogout: false, refreshRevoked: revoked });
+    }
+    const url = new URL(oidcConfig.end_session_endpoint);
+    url.search = new URLSearchParams({
+      client_id: clientId, id_token_hint: auth.idToken,
+      post_logout_redirect_uri: process.env.OIDC_POST_LOGOUT_REDIRECT_URI ?? new URL('/auth/logged-out', redirectUri).href,
+    }).toString();
+    return res.redirect(303, url.toString());
+  });
+  routes.get('/auth/logged-out', (_req, res) => res.json({ message: 'Fluxo de logout concluído. Para entrar, acesse /auth/login.' }));
+  return routes;
+}
