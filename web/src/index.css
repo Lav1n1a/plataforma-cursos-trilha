@@ -131,6 +131,13 @@ body {
   margin: 0;
 }
 
+.auth-page-background {
+  background-color: #fff;
+  background-image:
+    radial-gradient(ellipse 15rem 11rem at 10% 42%, rgba(189, 220, 227, 0.514), transparent 52%),
+    radial-gradient(ellipse 17rem 13rem at 90% 73%, rgba(189, 220, 227, 0.32), transparent 42%);
+}
+
 h1,
 h2 {
   font-family: var(--heading);

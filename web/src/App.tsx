@@ -1,10 +1,14 @@
 import { Router } from "./Router"
+import { Toaster } from "sonner"
 
 
 function App() {
 
   return (
-    <Router />
+    <>
+      <Router />
+      <Toaster position="top-right" richColors />
+    </>
   )
 }
 

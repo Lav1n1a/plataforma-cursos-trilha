@@ -13,7 +13,7 @@ export class AutenticarUsuarioUseCase {
 
          const usuario = await this.repo.findByEmail(data.email);
 
-        if (!usuario?.senha) {
+        if (!usuario) {
             throw new Error("Email ou senha inválidos");
         }
 

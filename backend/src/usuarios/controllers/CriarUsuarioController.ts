@@ -13,7 +13,8 @@ export class CriarUsuarioController {
 
         await this.useCase.execute(data);
 
-        return res.status(201).json({ message: "Usuário criado com sucesso" });
+        return res.status(201).json({ message: "Conta criada com sucesso!" });
+
     }
 
 

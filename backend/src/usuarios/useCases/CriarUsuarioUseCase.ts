@@ -1,6 +1,7 @@
-import { hash, verify } from 'argon2';
+import { hash } from 'argon2';
 import { CriarUsuarioDTO } from "../dtos/CriarUsuarioDTO"
 import { IUserRepository } from '../repositories/IUserRepository';
+import { BadRequestError } from '@/helpers/api-erros';
 
 export class CriarUsuarioUseCase {
 
@@ -10,18 +11,19 @@ export class CriarUsuarioUseCase {
 
     async execute(data: CriarUsuarioDTO) {
 
-        try {
-
-            if(!data.senha || !data.email) throw new Error("Senha e email são obrigatórios");
-
-            const senhaCriptografada = await hash(data.senha);
-
-            await this.repo.createUser({nome: data.nome, email: data.email, senha: senhaCriptografada})
-
-        }catch(err){
-            
-            throw new Error("Nao foi possivel criar o usuario!");
+        if (!data?.senha || !data.email) {
+            throw new BadRequestError("Senha e email são obrigatórios");
         }
+
+        const emailExistente = await this.repo.findByEmail(data.email);
+
+        if (emailExistente) {
+            throw new BadRequestError('Email já cadastrado!');
+        }
+
+        const senhaCriptografada = await hash(data.senha);
+
+        await this.repo.createUser({nome: data.nome, email: data.email, senha: senhaCriptografada});
 
     }
 
