@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express  from "express";
-import { usuarioRoutes } from "./rotas/usuario.routes";
+import { criarRotas } from "./rotas";
+import { InMemoryUserRepository } from './usuarios/repositories/prisma/InMemoryUserRepository';
+import { PrismaAuthRepository } from './auth/repositories/prisma/PrismaAuthRepository';
 import { httpLogger } from './middlewares/http-logger';
 import { metricsMiddleware } from './middlewares/metrics';
 import { metricsRegistry } from './observability/metrics';
@@ -34,9 +36,10 @@ app.use(express.json())
 
 app.use(cors({
   origin: process.env.FRONTEND_URL ?? "http://localhost:5173",
+  credentials: true,
 }));
 
-app.use(usuarioRoutes)
+app.use(criarRotas(new InMemoryUserRepository(), new PrismaAuthRepository()))
 app.use(errorHandler)
 
 app.listen(3333, () => {

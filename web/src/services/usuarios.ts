@@ -1,3 +1,5 @@
+import type { RotateCwSquareIcon } from "lucide-react";
+
 export type Usuario = {
     nome: string;
     email: string;
@@ -5,19 +7,22 @@ export type Usuario = {
 }
 
 export async function cadastrarUsuario(data: Usuario) {
-  const response = await fetch("http://localhost:3333/cadastro", {
+  return await fetch("http://localhost:3333/cadastro", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
   });
+}
 
-  const dados = await response.json();
-
-  if (!response.ok) {
-    throw new Error(dados.message ?? "Não foi possível realizar o cadastro.");
-  }
-
-  return dados;
+export async function LoginUsuario(data: Usuario) {
+   return await fetch("http://localhost:3333/auth/login", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
 }

@@ -11,19 +11,52 @@ import {
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { KeyRound } from "lucide-react"
 import { Link } from "react-router-dom"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "sonner"
 
-export function LoginForm({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+const loginUserFormSchema = z.object({
+    email: z
+      .string()
+      .trim()
+      .min(1, "O email é obrigatório")
+      .email("Digite um e-mail válido"),
+    senha: z
+      .string()
+      .min(1, "A senha é obrigatória")
+      .min(8, "A senha deve ter no mínimo 8 caracteres")
+      .regex(
+        /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d).*$/,
+        "A senha deve conter maiúscula, minúscula e número"
+      ),
+  });
+
+type LoginUser = z.infer<typeof loginUserFormSchema>
+
+export function LoginForm() {
+
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginUser>({
+    resolver: zodResolver(loginUserFormSchema),
+    defaultValues: {
+      email: "",
+      senha: "",
+    },
+  })
+
+  const onSubmit = async (data: LoginUser) => {
+     
+    }
+
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div>
       <Card>
         <CardHeader>
           <CardTitle>Entre com a sua conta</CardTitle>
@@ -32,26 +65,27 @@ export function LoginForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
+          <form noValidate onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="email@exemplo.com"
-                  required
-                />
+                 <Input
+                    id="email"
+                    type="email"
+                    placeholder="exemplo@email.com"
+                    aria-invalid={!!errors.email}
+                    {...register("email")}
+                  />
               </Field>
               <Field>
                 <div className="flex items-center">
                   <FieldLabel htmlFor="password">Senha</FieldLabel>
-                  {/* <a
-                    href="#"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                  >
-                    Forgot your password?
-                  </a> */}
+                      <Input
+                      id="senha"
+                      type="password"
+                      aria-invalid={!!errors.senha}
+                      {...register("senha")}
+                    />
                 </div>
                 <Input id="password" type="password" required />
               </Field>

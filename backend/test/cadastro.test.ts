@@ -15,6 +15,7 @@ function criarRepositorio(): IUserRepository {
     return {
         findByEmail: async () => null,
         findById: async () => null,
+        saveRefreshToken: async () => {},
         createUser: async (data) => ({ id: 1, nome: data.nome, email: data.email }),
     };
 }

@@ -9,7 +9,10 @@ export class BuscarUsuarioPorEmailController {
 
     async handle(req: Request, res: Response){
         
-        const email = req.body;
+        const email = req.query.email;
+        if (typeof email !== 'string' || !email) {
+            return res.status(400).json({ message: 'Email é obrigatório' });
+        }
 
        const data = await this.useCase.execute(email);
 

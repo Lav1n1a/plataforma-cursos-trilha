@@ -1,39 +1,17 @@
-import { Router } from "express";
-import { AuthMiddleware } from "@/middlewares/auth";
-import { CriarUsuarioController } from "@/usuarios/controllers/CriarUsuarioController";
-import { InMemoryUserRepository } from "@/usuarios/repositories/prisma/InMemoryUserRepository";
-import { CriarUsuarioUseCase } from "@/usuarios/useCases/CriarUsuarioUseCase";
-import { BuscarUsuarioPorEmailUseCase } from "@/usuarios/useCases/BuscarUsuarioPorEmail";
-import { BuscarUsuarioPorEmailController } from "@/usuarios/controllers/BuscarUsuarioPorEmailController";
-import { AutenticarUsuarioUseCase } from "@/usuarios/useCases/AutenticarUsuario";
-import { AutenticarUsuarioController } from "@/usuarios/controllers/AutenticarUsuarioController";
+import { Router } from 'express';
+import type { IUserRepository } from '../usuarios/repositories/IUserRepository';
+import { BuscarUsuarioPorEmailUseCase } from '../usuarios/useCases/BuscarUsuarioPorEmail';
+import { BuscarUsuarioPorEmailController } from '../usuarios/controllers/BuscarUsuarioPorEmailController';
 
-const usuarioRoutes = Router();
+export function criarUsuarioRoutes(users: IUserRepository) {
 
-//Composition Root
-const userRepository = new InMemoryUserRepository();
+    const router = Router();
 
-const authMiddleware = new AuthMiddleware(userRepository);
+    const buscar = new BuscarUsuarioPorEmailController(new BuscarUsuarioPorEmailUseCase(users));
 
-const auth = authMiddleware.execute;
+    router.get('/', (req, res) => buscar.handle(req, res));
 
-const criarUsuarioUseCase = new CriarUsuarioUseCase(userRepository);
-const criarUsuarioController = new CriarUsuarioController(criarUsuarioUseCase);
-const buscarUsuarioUseCase = new BuscarUsuarioPorEmailUseCase(userRepository);
-const buscarUsuarioController = new BuscarUsuarioPorEmailController(buscarUsuarioUseCase);
-const autenticarUsuarioUseCase = new AutenticarUsuarioUseCase(userRepository);
-const autenticarUsuarioController = new AutenticarUsuarioController(autenticarUsuarioUseCase);
-
-usuarioRoutes.post("/cadastro", (req, res) => criarUsuarioController.handle(req, res));
-
-usuarioRoutes.post("/login", (req, res) => autenticarUsuarioController.handle(req, res));
-
-usuarioRoutes.use(auth);
-
-usuarioRoutes.get("/usuarios", (req, res) => buscarUsuarioController.handle(req, res));
-
-usuarioRoutes.get("/me", (req, res) => {
-    return res.status(200).json(req.user);
-});
-
-export { usuarioRoutes }
+    router.get('/me', (req, res) => res.json(req.user));
+    
+    return router;
+}
