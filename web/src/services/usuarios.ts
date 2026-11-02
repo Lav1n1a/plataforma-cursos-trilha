@@ -1,5 +1,3 @@
-import type { RotateCwSquareIcon } from "lucide-react";
-
 export type Usuario = {
     nome: string;
     email: string;
@@ -16,7 +14,7 @@ export async function cadastrarUsuario(data: Usuario) {
   });
 }
 
-export async function LoginUsuario(data: Usuario) {
+export async function LoginUsuario(data: Omit<Usuario, 'nome'>) {
    return await fetch("http://localhost:3333/auth/login", {
     method: "POST",
     credentials: "include",

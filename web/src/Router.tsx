@@ -7,6 +7,8 @@ import {
 
 import LoginPage from "./login/page"
 import SignupPage from "./cadastro/page"
+import PortalPage from "./portal/page"
+import { ProtectedRoute } from "./auth/ProtectedRoute"
 
 export function Router() {
   return (
@@ -15,7 +17,9 @@ export function Router() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cadastro" element={<SignupPage />} />
         <Route path="/admin/*" />
-        <Route path="/portal/*" />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/portal" element={<PortalPage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

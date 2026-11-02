@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils"
-
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -17,11 +15,12 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { KeyRound } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "sonner"
+import { LoginUsuario } from "@/services/usuarios"
+import { useAuth } from "@/auth/useAuth"
 
 const loginUserFormSchema = z.object({
     email: z
@@ -42,8 +41,10 @@ const loginUserFormSchema = z.object({
 type LoginUser = z.infer<typeof loginUserFormSchema>
 
 export function LoginForm() {
+  const navigate = useNavigate()
+  const { setSessao } = useAuth()
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginUser>({
+  const { register, handleSubmit, setError, clearErrors, formState: { errors, isSubmitting } } = useForm<LoginUser>({
     resolver: zodResolver(loginUserFormSchema),
     defaultValues: {
       email: "",
@@ -52,8 +53,27 @@ export function LoginForm() {
   })
 
   const onSubmit = async (data: LoginUser) => {
-     
+    clearErrors("root")
+    try {
+      const resposta = await LoginUsuario(data)
+      const resultado = await resposta.json()
+
+      if (!resposta.ok) {
+        throw new Error(resultado.message ?? "Não foi possível entrar. Confira seus dados.")
+      }
+      if (typeof resultado.accessToken !== "string" || !resultado.accessToken ||
+          typeof resultado.user?.nome !== "string" || typeof resultado.user?.email !== "string") {
+        throw new Error("O servidor não retornou os dados da sessão. Tente novamente.")
+      }
+
+      setSessao(resultado)
+      navigate("/portal", { replace: true })
+    } catch (erro) {
+      setError("root", {
+        message: erro instanceof Error ? erro.message : "Não foi possível entrar. Tente novamente.",
+      })
     }
+  }
 
   return (
     <div>
@@ -76,21 +96,23 @@ export function LoginForm() {
                     aria-invalid={!!errors.email}
                     {...register("email")}
                   />
+                  <FieldError errors={[errors.email]} />
               </Field>
               <Field>
-                <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Senha</FieldLabel>
-                      <Input
-                      id="senha"
-                      type="password"
-                      aria-invalid={!!errors.senha}
-                      {...register("senha")}
-                    />
-                </div>
-                <Input id="password" type="password" required />
+              <FieldLabel htmlFor="senha">Senha</FieldLabel>
+                    <Input
+                    id="senha"
+                    type="password"
+                    aria-invalid={!!errors.senha}
+                    {...register("senha")}
+                />
+                <FieldError errors={[errors.senha]} />
               </Field>
+              {errors.root?.message && <FieldError role="alert">{errors.root.message}</FieldError>}
               <Field>
-                <Button type="submit">Login</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Entrando…" : "Login"}
+                </Button>
                 <FieldDescription className="text-center">
                   Não possui uma conta? <Link to="/cadastro">Cadastre-se</Link>
                 </FieldDescription>

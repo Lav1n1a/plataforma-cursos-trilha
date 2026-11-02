@@ -9,13 +9,22 @@ export function hashRefreshToken(token: string) {
 }
 
 export function criarSessao(usuario: Usuario) {
+
     const secret = process.env.JWT_SECRET;
+
     if (!secret) throw new Error('JWT_SECRET não configurado');
+
     return {
-        accessToken: jwt.sign({ id: usuario.id, perfil: usuario.perfil }, secret, {
-            expiresIn: '15m', algorithm: 'HS256',
+        accessToken: jwt.sign({ 
+            id: usuario.id, 
+            perfil: usuario.perfil },
+            secret, 
+            {
+              expiresIn: '15m', algorithm: 'HS256',
         }),
+
         refreshToken: randomBytes(32).toString('hex'),
+        
         user: { id: usuario.id, nome: usuario.nome, email: usuario.email, perfil: usuario.perfil },
     };
 }
