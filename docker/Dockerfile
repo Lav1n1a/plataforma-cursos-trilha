@@ -6,17 +6,17 @@ RUN apt-get update \
 
 WORKDIR /app
 
-FROM node-base AS backend-build\
+FROM node-base AS backend-build
 
-COPY backend/package.json backend/package-lock.json ./
-COPY backend/prisma ./prisma
+COPY ./backend/package.json backend/package-lock.json ./
+COPY ./backend/prisma ./prisma
 
 RUN npm ci
 
 RUN npm run db:generate
 
-COPY backend/tsconfig.json ./
-COPY backend/src ./src
+COPY ./backend/tsconfig.json ./
+COPY ./backend/src ./src
 
 RUN npm run build
 RUN npm prune --omit=dev
@@ -43,7 +43,7 @@ COPY web/package.json web/package-lock.json ./
 
 RUN npm ci
 
-COPY web/ ./
+COPY ./web/ ./
 
 RUN npm run build
 

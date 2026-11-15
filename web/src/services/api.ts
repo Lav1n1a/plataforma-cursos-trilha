@@ -7,7 +7,7 @@ export async function requisicaoProtegida(
   const headers = new Headers(opcoes.headers)
   headers.set("Authorization", `Bearer ${accessToken}`)
 
-  const resposta = await fetch(`http://localhost:3333${caminho}`, {
+  const resposta = await fetch(`/api${caminho}`, {
     ...opcoes,
     headers,
   })

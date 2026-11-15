@@ -5,7 +5,7 @@ export type Usuario = {
 }
 
 export async function cadastrarUsuario(data: Usuario) {
-  return await fetch("http://localhost:3333/cadastro", {
+  return await fetch("/api/cadastro", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -15,7 +15,7 @@ export async function cadastrarUsuario(data: Usuario) {
 }
 
 export async function LoginUsuario(data: Omit<Usuario, 'nome'>) {
-   return await fetch("http://localhost:3333/auth/login", {
+   return await fetch("/api/auth/login", {
     method: "POST",
     credentials: "include",
     headers: {

@@ -1,7 +1,7 @@
 import type { Sessao } from "./types"
 
 export async function renovarSessao(): Promise<Sessao | null> {
-  const resposta = await fetch("http://localhost:3333/auth/refresh", {
+  const resposta = await fetch("/api/auth/refresh", {
     method: "POST",
     credentials: "include", 
   })
